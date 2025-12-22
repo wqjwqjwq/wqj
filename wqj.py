@@ -1,21 +1,52 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
 # --------------------------
-# 页面配置（宽屏布局，美观图标）
+# 自定义CSS：扩大页面宽度，确保信息完整显示
+# --------------------------
+st.markdown("""
+<style>
+/* 扩大页面主容器宽度，取消最大宽度限制 */
+.main .block-container {
+    max-width: 95% !important;  /* 占浏览器宽度95%，足够展示完整信息 */
+    width: 95% !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+}
+/* 优化图表图例样式，避免公园名称换行截断 */
+.stChart svg g.legend {
+    font-size: 14px !important;  /* 适当放大图例字体，不挤压 */
+    gap: 10px !important;  /* 增图例间距，避免重叠 */
+}
+/* 优化数据表格样式，确保列宽足够 */
+.dataframe {
+    width: 100% !important;
+    table-layout: auto !important;  /* 自动适配列宽 */
+}
+.dataframe th, .dataframe td {
+    white-space: nowrap !important;  /* 禁止文字换行 */
+    padding: 8px 12px !important;  /* 增加单元格内边距 */
+}
+</style>
+""", unsafe_allow_html=True)
+
+# --------------------------
+# 页面配置（居中布局+扩大宽度）
 # --------------------------
 st.set_page_config(
     page_title="南宁公园数据仪表盘",
     page_icon="🌳",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
 
 # --------------------------
-# 构造核心数据（6个公园，完整12个月数据）
+# 构造数据（数字月份根治排序）
 # --------------------------
-# 1. 公园基础信息（含精准地理坐标）
+month_nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+month_names = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
+month_num_to_name = dict(zip(month_nums, month_names))
+
 park_info = pd.DataFrame({
     "公园名称": [
         "青秀山风景区",
@@ -40,170 +71,128 @@ park_info = pd.DataFrame({
     "经度": [108.3572, 108.3267, 108.3225, 108.3017, 108.3508, 108.3689]
 })
 
-# 2. 12个月价格走势数据（确保1-12月顺序）
-months = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
 price_data = pd.DataFrame({
-    "月份": months,
-    "青秀山风景区": [30, 30, 20, 20, 30, 20, 20, 20, 20, 30, 20, 20],  # 收费公园
-    "南湖公园": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],                # 免费公园
-    "南宁市人民公园": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],          # 免费公园
-    "狮山公园": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],                # 免费公园
-    "石门森林公园": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],            # 免费公园
-    "良凤江国家森林公园": [20, 20, 15, 15, 20, 15, 15, 15, 15, 20, 15, 15]  # 收费公园
-}).set_index("月份")
+    "月份数字": month_nums,
+    "青秀山风景区": [30, 30, 20, 20, 30, 20, 20, 20, 20, 30, 20, 20],
+    "南湖公园": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+    "南宁市人民公园": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+    "狮山公园": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+    "石门森林公园": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+    "良凤江国家森林公园": [20, 20, 15, 15, 20, 15, 15, 15, 15, 20, 15, 15]
+})
+price_data["月份"] = price_data["月份数字"].map(month_num_to_name)
 
-# 3. 月度游客量数据（用于面积图）
 monthly_visitor_data = pd.DataFrame({
-    "月份": months,
+    "月份数字": month_nums,
     "青秀山风景区": [55, 78, 52, 45, 60, 48, 42, 40, 38, 85, 50, 45],
     "南湖公园": [68, 85, 72, 65, 75, 62, 58, 55, 60, 90, 70, 65],
     "南宁市人民公园": [40, 55, 42, 38, 45, 35, 32, 30, 28, 60, 42, 38],
     "狮山公园": [28, 35, 30, 25, 32, 26, 24, 22, 20, 40, 28, 25],
     "石门森林公园": [32, 40, 35, 30, 38, 32, 29, 27, 25, 45, 35, 30],
     "良凤江国家森林公园": [18, 25, 20, 16, 22, 18, 15, 14, 12, 30, 19, 16]
-}).set_index("月份")
+})
+monthly_visitor_data["月份"] = monthly_visitor_data["月份数字"].map(month_num_to_name)
 
 # --------------------------
-# 侧边栏（公园筛选功能）
+# 侧边栏
 # --------------------------
-st.sidebar.header("🌳 南宁公园数据筛选")
-selected_parks = st.sidebar.multiselect(
-    "选择要查看的公园",
-    options=park_info["公园名称"].unique(),
-    default=park_info["公园名称"].unique()  # 默认选中所有公园
-)
+with st.sidebar:
+    st.header("🌳 选择公园")
+    selected_parks = st.multiselect(
+        "勾选要查看的公园",
+        options=park_info["公园名称"].unique(),
+        default=park_info["公园名称"].unique()
+    )
 
-# 数据筛选（增加健壮性校验，避免报错）
-valid_parks = [park for park in selected_parks if park in price_data.columns]
-filtered_park_info = park_info[park_info["公园名称"].isin(valid_parks)]
-filtered_price_data = price_data[valid_parks]
-filtered_monthly_visitor = monthly_visitor_data[valid_parks]
-
-# 无效选择提示（友好提示用户）
-invalid_parks = set(selected_parks) - set(valid_parks)
-if invalid_parks:
-    st.sidebar.warning(f"以下公园无价格数据，已自动过滤：{', '.join(invalid_parks)}")
+filtered_price_data = price_data[["月份数字", "月份"] + selected_parks]
+filtered_monthly_visitor = monthly_visitor_data[["月份数字", "月份"] + selected_parks]
+filtered_park_info = park_info[park_info["公园名称"].isin(selected_parks)]
 
 # --------------------------
-# 主页面内容（完整可视化展示）
+# 主页面（完整显示所有信息）
 # --------------------------
-st.title("🌳 南宁公园数据可视化仪表盘")
+st.markdown("<h1 style='text-align: center; color: #2E8B57;'>🌳 南宁公园数据可视化仪表盘</h1>", unsafe_allow_html=True)
 st.divider()
 
-# 1. 公园基础信息表格
-st.subheader("一、公园基础信息")
+# 1. 公园基础信息
+st.markdown("<h3 style='text-align: center;'>一、公园基础信息</h3>", unsafe_allow_html=True)
 st.dataframe(
     filtered_park_info.drop(["纬度", "经度"], axis=1),
     use_container_width=True,
-    hide_index=True
+    hide_index=True,
+    height=200
 )
 
 st.divider()
 
-# 2. 优化后的价格走势折线图（核心优化）
-st.subheader("二、公园12个月门票价格走势")
-# 强制按1-12月排序，解决月份混乱问题
-filtered_price_data = filtered_price_data.reindex(months)
-st.caption("注：红色/橙色粗线为收费公园，浅色细线为免费公园（0元），鼠标悬停可查看具体价格")
+# 2. 价格走势折线图（完整显示图例）
+st.markdown("<h3 style='text-align: center;'>二、12个月门票价格走势</h3>", unsafe_allow_html=True)
+st.caption("注：x轴1-12对应1月-12月；红色=青秀山（收费），橙色=良凤江（收费），浅色=免费公园", help="鼠标悬停可查看具体价格")
 
-# 自定义样式映射（区分收费/免费公园）
-park_styles = {
-    "青秀山风景区": {"color": "#E53E3E", "line_width": 4},        # 收费-大红粗线
-    "良凤江国家森林公园": {"color": "#DD6B20", "line_width": 4},  # 收费-深橙粗线
-    "南湖公园": {"color": "#38A16980", "line_width": 2},          # 免费-浅绿细线（80为透明度）
-    "南宁市人民公园": {"color": "#3182CE80", "line_width": 2},      # 免费-浅蓝细线
-    "狮山公园": {"color": "#805AD580", "line_width": 2},          # 免费-浅紫细线
-    "石门森林公园": {"color": "#D69E2E80", "line_width": 2}        # 免费-浅黄细线
+color_map = {
+    "青秀山风景区": "#E53E3E",
+    "良凤江国家森林公园": "#DD6B20",
+    "南湖公园": "#38A16980",
+    "南宁市人民公园": "#3182CE80",
+    "狮山公园": "#805AD580",
+    "石门森林公园": "#D69E2E80"
 }
+chart_colors = [color_map[park] for park in selected_parks]
 
-# 提取选中公园对应的颜色列表
-selected_colors = [park_styles[park]["color"] for park in valid_parks]
-
-# 折线图布局（左右分栏，美观清晰）
-col1, col2 = st.columns([8, 2])
-with col1:
-    # 绘制原生折线图，增大高度避免拥挤
-    st.line_chart(
-        filtered_price_data,
-        use_container_width=True,
-        color=selected_colors,
-        y_label="门票价格（元）",
-        height=400
-    )
-    # 注入JS调整线条宽度（原生图表间接实现线宽区分）
-    st.markdown(f"""
-        <script>
-            const lineElements = document.querySelectorAll('.stLineChart svg g path');
-            const parkList = {valid_parks};
-            const styleMap = {park_styles};
-            parkList.forEach((park, index) => {{
-                if (lineElements[index]) {{
-                    lineElements[index].setAttribute('stroke-width', styleMap[park].line_width);
-                }}
-            }});
-        </script>
-    """, unsafe_allow_html=True)
-
-with col2:
-    # 价格说明侧边栏
-    st.markdown("### 🎫 价格明细")
-    st.markdown("- **青秀山风景区**：节假日30元，平日20元")
-    st.markdown("- **良凤江国家森林公园**：节假日20元，平日15元")
-    st.markdown("- **其余公园**：全年免费开放")
-    st.markdown("### 📊 操作提示")
-    st.markdown("- 鼠标悬停查看精准价格")
-    st.markdown("- 点击图例隐藏/显示公园")
+st.line_chart(
+    data=filtered_price_data,
+    x="月份数字",
+    y=selected_parks,
+    color=chart_colors,
+    y_label="门票价格（元）",
+    height=400,
+    use_container_width=True
+)
+st.markdown("<p style='text-align: center;'>x轴：1=1月，2=2月，...，12=12月</p>", unsafe_allow_html=True)
 
 st.divider()
 
-# 3. 柱状图+面积图（双栏布局）
-col3, col4 = st.columns(2)
+# 3. 游客量图表（完整显示）
+col1, col2 = st.columns([1, 1], gap="small")
 
-# 柱状图：年游客量对比
-with col3:
-    st.subheader("三、公园年游客量对比")
-    bar_data = filtered_park_info.set_index("公园名称")["年游客量(万人次)"]
+with col1:
+    st.markdown("<h3 style='text-align: center;'>三、年游客量对比</h3>", unsafe_allow_html=True)
     st.bar_chart(
-        bar_data,
-        use_container_width=True,
+        data=filtered_park_info.set_index("公园名称")["年游客量(万人次)"],
         color="#2E8B57",
         y_label="年游客量（万人次）",
-        height=400
+        height=350,
+        use_container_width=True
     )
 
-# 面积图：月度游客量趋势（优化重叠问题）
-with col4:
-    st.subheader("四、公园月度游客量趋势")
-    # 强制月份排序，半透明色避免重叠
-    filtered_monthly_visitor = filtered_monthly_visitor.reindex(months)
-    area_colors = [park_styles[park]["color"] for park in valid_parks]
+with col2:
+    st.markdown("<h3 style='text-align: center;'>四、月度游客量趋势</h3>", unsafe_allow_html=True)
     st.area_chart(
-        filtered_monthly_visitor,
-        use_container_width=True,
-        color=area_colors,
+        data=filtered_monthly_visitor,
+        x="月份数字",
+        y=selected_parks,
+        color=chart_colors,
         y_label="月度游客量（万人次）",
-        height=400
+        height=350,
+        use_container_width=True
     )
 
 st.divider()
 
-# 4. 修复后的公园地理位置分布（兼容所有Streamlit版本）
-st.subheader("五、公园地理位置分布")
-st.caption("注：标记点为公园实际地理坐标，可放大/缩小、拖拽查看详情")
-
-# 移除不兼容参数，确保地图正常渲染
+# 4. 公园位置
+st.markdown("<h3 style='text-align: center;'>五、公园位置分布</h3>", unsafe_allow_html=True)
 st.map(
     filtered_park_info,
     latitude="纬度",
-    longitude="经度"
+    longitude="经度",
+    zoom=11
 )
 
-# 补充公园地址详情
-st.markdown("### 📌 公园地址详情")
-location_detail = filtered_park_info[["公园名称", "地址"]].set_index("公园名称")
-st.dataframe(location_detail, use_container_width=True)
+st.markdown("<h3 style='text-align: center;'>📌 公园地址详情</h3>", unsafe_allow_html=True)
+st.dataframe(
+    filtered_park_info[["公园名称", "地址"]].set_index("公园名称"),
+    use_container_width=True,
+    height=150
+)
 
-# 页脚信息
-st.divider()
-st.markdown("---")
-st.markdown("© 2025 南宁公园数据可视化平台 | 数据为模拟整理，仅供展示使用")
+st.markdown("<hr><p style='text-align: center; color: #666;'>© 2025 南宁公园数据可视化平台</p>", unsafe_allow_html=True)
