@@ -1,198 +1,132 @@
 import streamlit as st
-import pandas as pd
+import requests
+from io import BytesIO
+from PIL import Image
 
-# --------------------------
-# 自定义CSS：扩大页面宽度，确保信息完整显示
-# --------------------------
-st.markdown("""
-<style>
-/* 扩大页面主容器宽度，取消最大宽度限制 */
-.main .block-container {
-    max-width: 95% !important;  /* 占浏览器宽度95%，足够展示完整信息 */
-    width: 95% !important;
-    padding-left: 2rem !important;
-    padding-right: 2rem !important;
-}
-/* 优化图表图例样式，避免公园名称换行截断 */
-.stChart svg g.legend {
-    font-size: 14px !important;  /* 适当放大图例字体，不挤压 */
-    gap: 10px !important;  /* 增图例间距，避免重叠 */
-}
-/* 优化数据表格样式，确保列宽足够 */
-.dataframe {
-    width: 100% !important;
-    table-layout: auto !important;  /* 自动适配列宽 */
-}
-.dataframe th, .dataframe td {
-    white-space: nowrap !important;  /* 禁止文字换行 */
-    padding: 8px 12px !important;  /* 增加单元格内边距 */
-}
-</style>
-""", unsafe_allow_html=True)
-
-# --------------------------
-# 页面配置（居中布局+扩大宽度）
-# --------------------------
+# 1. 页面基础配置（设置标题、布局，默认居中）
 st.set_page_config(
-    page_title="南宁公园数据仪表盘",
-    page_icon="🌳",
-    layout="centered",
-    initial_sidebar_state="collapsed"
+    page_title="Streamlit 网络相册（带图注）",
+    layout="centered",  # 页面整体居中布局
+    initial_sidebar_state="collapsed"  # 隐藏侧边栏，更整洁
 )
 
-# --------------------------
-# 构造数据（数字月份根治排序）
-# --------------------------
-month_nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-month_names = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
-month_num_to_name = dict(zip(month_nums, month_names))
-
-park_info = pd.DataFrame({
-    "公园名称": [
-        "青秀山风景区",
-        "南湖公园",
-        "南宁市人民公园",
-        "狮山公园",
-        "石门森林公园",
-        "良凤江国家森林公园"
-    ],
-    "地址": [
-        "青秀区凤岭南路6号",
-        "青秀区双拥路1号",
-        "兴宁区人民东路1号",
-        "兴宁区邕武路4号",
-        "青秀区民族大道118号",
-        "江南区友谊路78号"
-    ],
-    "占地面积(公顷)": [437.6, 191.9, 50.1, 80.2, 160.0, 486.7],
-    "年游客量(万人次)": [650, 820, 480, 320, 390, 210],
-    "游客评分(5分制)": [4.8, 4.7, 4.6, 4.5, 4.4, 4.3],
-    "纬度": [22.8167, 22.8469, 22.8728, 22.8958, 22.8397, 22.6522],
-    "经度": [108.3572, 108.3267, 108.3225, 108.3017, 108.3508, 108.3689]
-})
-
-price_data = pd.DataFrame({
-    "月份数字": month_nums,
-    "青秀山风景区": [30, 30, 20, 20, 30, 20, 20, 20, 20, 30, 20, 20],
-    "南湖公园": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
-    "南宁市人民公园": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
-    "狮山公园": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
-    "石门森林公园": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
-    "良凤江国家森林公园": [20, 20, 15, 15, 20, 15, 15, 15, 15, 20, 15, 15]
-})
-price_data["月份"] = price_data["月份数字"].map(month_num_to_name)
-
-monthly_visitor_data = pd.DataFrame({
-    "月份数字": month_nums,
-    "青秀山风景区": [55, 78, 52, 45, 60, 48, 42, 40, 38, 85, 50, 45],
-    "南湖公园": [68, 85, 72, 65, 75, 62, 58, 55, 60, 90, 70, 65],
-    "南宁市人民公园": [40, 55, 42, 38, 45, 35, 32, 30, 28, 60, 42, 38],
-    "狮山公园": [28, 35, 30, 25, 32, 26, 24, 22, 20, 40, 28, 25],
-    "石门森林公园": [32, 40, 35, 30, 38, 32, 29, 27, 25, 45, 35, 30],
-    "良凤江国家森林公园": [18, 25, 20, 16, 22, 18, 15, 14, 12, 30, 19, 16]
-})
-monthly_visitor_data["月份"] = monthly_visitor_data["月份数字"].map(month_num_to_name)
-
-# --------------------------
-# 侧边栏
-# --------------------------
-with st.sidebar:
-    st.header("🌳 选择公园")
-    selected_parks = st.multiselect(
-        "勾选要查看的公园",
-        options=park_info["公园名称"].unique(),
-        default=park_info["公园名称"].unique()
-    )
-
-filtered_price_data = price_data[["月份数字", "月份"] + selected_parks]
-filtered_monthly_visitor = monthly_visitor_data[["月份数字", "月份"] + selected_parks]
-filtered_park_info = park_info[park_info["公园名称"].isin(selected_parks)]
-
-# --------------------------
-# 主页面（完整显示所有信息）
-# --------------------------
-st.markdown("<h1 style='text-align: center; color: #2E8B57;'>🌳 南宁公园数据可视化仪表盘</h1>", unsafe_allow_html=True)
+# 2. 标题居中美化
+st.markdown("<h1 style='text-align: center; color: #2E86AB;'>📷 网络图片相册</h1>", unsafe_allow_html=True)
 st.divider()
 
-# 1. 公园基础信息
-st.markdown("<h3 style='text-align: center;'>一、公园基础信息</h3>", unsafe_allow_html=True)
-st.dataframe(
-    filtered_park_info.drop(["纬度", "经度"], axis=1),
-    use_container_width=True,
-    hide_index=True,
-    height=200
-)
+# 3. 图片配置：包含网络图片链接和对应的专属图注（一一对应）
+PHOTO_CONFIG = [
+    {
+        "url": "https://picsum.photos/800/500?random=1",
+        "caption": "静谧的山间湖泊，清晨的薄雾笼罩着湖面，宛如人间仙境"
+    },
+    {
+        "url": "https://picsum.photos/800/500?random=2",
+        "caption": "城市天际线全景，高楼林立间藏着都市的繁华与烟火气"
+    },
+    {
+        "url": "https://picsum.photos/800/500?random=3",
+        "caption": "秋日森林小径，金黄的落叶铺满路面，尽显秋意浓情"
+    },
+    {
+        "url": "https://picsum.photos/800/500?random=4",
+        "caption": "海边日落美景，橘红色的晚霞映红海面，治愈又浪漫"
+    },
+    {
+        "url": "https://picsum.photos/800/500?random=5",
+        "caption": "雪山之巅风光，洁白的积雪与湛蓝的天空相映成趣"
+    }
+]
 
-st.divider()
+# 提取图片链接列表（用于索引匹配）
+PHOTO_URLS = [item["url"] for item in PHOTO_CONFIG]
+# 提取图片图注列表（与图片一一对应）
+PHOTO_CAPTIONS = [item["caption"] for item in PHOTO_CONFIG]
 
-# 2. 价格走势折线图（完整显示图例）
-st.markdown("<h3 style='text-align: center;'>二、12个月门票价格走势</h3>", unsafe_allow_html=True)
-st.caption("注：x轴1-12对应1月-12月；红色=青秀山（收费），橙色=良凤江（收费），浅色=免费公园", help="鼠标悬停可查看具体价格")
+# 4. 初始化会话状态（保存当前图片索引，持久化状态）
+if "current_index" not in st.session_state:
+    st.session_state.current_index = 0
 
-color_map = {
-    "青秀山风景区": "#E53E3E",
-    "良凤江国家森林公园": "#DD6B20",
-    "南湖公园": "#38A16980",
-    "南宁市人民公园": "#3182CE80",
-    "狮山公园": "#805AD580",
-    "石门森林公园": "#D69E2E80"
-}
-chart_colors = [color_map[park] for park in selected_parks]
+def load_image_from_url(url):
+    """从网络URL加载图片，返回PIL图片对象（增加请求头，提高兼容性）"""
+    try:
+        # 添加请求头，模拟浏览器访问，避免部分服务器拒绝
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()  # 抛出HTTP请求异常
+        image_data = BytesIO(response.content)
+        
+        # 验证并打开图片
+        img = Image.open(image_data)
+        # 重置文件指针（避免后续读取失败）
+        image_data.seek(0)
+        return img
+    except Exception as e:
+        st.error(f"图片加载失败：{str(e)}")
+        return None
 
-st.line_chart(
-    data=filtered_price_data,
-    x="月份数字",
-    y=selected_parks,
-    color=chart_colors,
-    y_label="门票价格（元）",
-    height=400,
-    use_container_width=True
-)
-st.markdown("<p style='text-align: center;'>x轴：1=1月，2=2月，...，12=12月</p>", unsafe_allow_html=True)
+# 5. 按钮布局（三列布局，实现左右按钮、中间信息居中）
+col1, col2, col3 = st.columns([1, 2, 1], gap="medium")
+current_idx = st.session_state.current_index
 
-st.divider()
-
-# 3. 游客量图表（完整显示）
-col1, col2 = st.columns([1, 1], gap="small")
-
+# 上一张按钮
 with col1:
-    st.markdown("<h3 style='text-align: center;'>三、年游客量对比</h3>", unsafe_allow_html=True)
-    st.bar_chart(
-        data=filtered_park_info.set_index("公园名称")["年游客量(万人次)"],
-        color="#2E8B57",
-        y_label="年游客量（万人次）",
-        height=350,
-        use_container_width=True
-    )
+    if st.button("⬅️ 上一张", use_container_width=True, type="secondary"):
+        if current_idx > 0:
+            st.session_state.current_index -= 1
+        else:
+            st.warning("⚠️ 已经是第一张图片啦！")
 
+# 当前图片信息（居中显示）
 with col2:
-    st.markdown("<h3 style='text-align: center;'>四、月度游客量趋势</h3>", unsafe_allow_html=True)
-    st.area_chart(
-        data=filtered_monthly_visitor,
-        x="月份数字",
-        y=selected_parks,
-        color=chart_colors,
-        y_label="月度游客量（万人次）",
-        height=350,
-        use_container_width=True
+    st.markdown(
+        f"<p style='text-align: center; font-size: 18px; color: #4A4A4A;'>当前：第 {current_idx + 1} / {len(PHOTO_URLS)} 张</p>",
+        unsafe_allow_html=True
     )
 
+# 下一张按钮
+with col3:
+    if st.button("下一张 ➡️", use_container_width=True, type="secondary"):
+        if current_idx < len(PHOTO_URLS) - 1:
+            st.session_state.current_index += 1
+        else:
+            st.warning("⚠️ 已经是最后一张图片啦！")
+
+# 6. 图片显示区域（居中+自定义大小+专属图注）
 st.divider()
+img = load_image_from_url(PHOTO_URLS[current_idx])
+current_caption = PHOTO_CAPTIONS[current_idx]  # 获取当前图片对应的图注
 
-# 4. 公园位置
-st.markdown("<h3 style='text-align: center;'>五、公园位置分布</h3>", unsafe_allow_html=True)
-st.map(
-    filtered_park_info,
-    latitude="纬度",
-    longitude="经度",
-    zoom=11
-)
-
-st.markdown("<h3 style='text-align: center;'>📌 公园地址详情</h3>", unsafe_allow_html=True)
-st.dataframe(
-    filtered_park_info[["公园名称", "地址"]].set_index("公园名称"),
-    use_container_width=True,
-    height=150
-)
-
-st.markdown("<hr><p style='text-align: center; color: #666;'>© 2025 南宁公园数据可视化平台</p>", unsafe_allow_html=True)
+# 图片容器（居中布局）
+image_container = st.container()
+with image_container:
+    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+    if img:
+        # 调整图片大小：width设置为800（可自定义），实现固定大小+居中
+        st.image(
+            img,
+            width=800,  # 替换弃用的use_column_width，控制图片宽度
+            # 图注组合：包含图片序号、尺寸和自定义描述
+            caption=f"图片 {current_idx + 1} | 尺寸：{img.size[0]}x{img.size[1]} | 描述：{current_caption}",
+            use_container_width=False  # 关闭容器宽度自适应，使用自定义width
+        )
+        # 单独放大显示图注（可选，提升可读性）
+        st.markdown(
+            f"<p style='text-align: center; font-size: 16px; color: #2E86AB; font-weight: 500;'>图注：{current_caption}</p>",
+            unsafe_allow_html=True
+        )
+    else:
+        # 图片加载失败时，显示占位提示+默认图注
+        st.image(
+            "https://picsum.photos/800/500?random=0",  # 占位图片
+            width=800,
+            caption=f"图片 {current_idx + 1} | 占位图 | 描述：图片加载失败，无法显示原图注",
+            use_container_width=False
+        )
+        st.markdown(
+            "<p style='text-align: center; font-size: 16px; color: #E74C3C; font-weight: 500;'>图注：图片加载失败</p>",
+            unsafe_allow_html=True
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
