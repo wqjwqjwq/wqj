@@ -2,228 +2,208 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# ===================== 1. 页面核心配置（紧凑居中） =====================
+# --------------------------
+# 页面配置（宽屏布局，美观图标）
+# --------------------------
 st.set_page_config(
-    page_title="星际学员数字档案",
-    layout="centered",
-    initial_sidebar_state="expanded",
-    page_icon="🚀"
+    page_title="南宁公园数据仪表盘",
+    page_icon="🌳",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# ===================== 2. 科幻CSS（移除图片样式+紧凑布局） =====================
-st.markdown("""
-<style>
-/* 全局样式 */
-.stApp {
-    background: linear-gradient(135deg, #000000 0%, #0a1929 50%, #001220 100%);
-    color: #ffffff;
-    font-family: 'Courier New', monospace;
-    font-size: 12px !important;
+# --------------------------
+# 构造核心数据（6个公园，完整12个月数据）
+# --------------------------
+# 1. 公园基础信息（含精准地理坐标）
+park_info = pd.DataFrame({
+    "公园名称": [
+        "青秀山风景区",
+        "南湖公园",
+        "南宁市人民公园",
+        "狮山公园",
+        "石门森林公园",
+        "良凤江国家森林公园"
+    ],
+    "地址": [
+        "青秀区凤岭南路6号",
+        "青秀区双拥路1号",
+        "兴宁区人民东路1号",
+        "兴宁区邕武路4号",
+        "青秀区民族大道118号",
+        "江南区友谊路78号"
+    ],
+    "占地面积(公顷)": [437.6, 191.9, 50.1, 80.2, 160.0, 486.7],
+    "年游客量(万人次)": [650, 820, 480, 320, 390, 210],
+    "游客评分(5分制)": [4.8, 4.7, 4.6, 4.5, 4.4, 4.3],
+    "纬度": [22.8167, 22.8469, 22.8728, 22.8958, 22.8397, 22.6522],
+    "经度": [108.3572, 108.3267, 108.3225, 108.3017, 108.3508, 108.3689]
+})
+
+# 2. 12个月价格走势数据（确保1-12月顺序）
+months = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
+price_data = pd.DataFrame({
+    "月份": months,
+    "青秀山风景区": [30, 30, 20, 20, 30, 20, 20, 20, 20, 30, 20, 20],  # 收费公园
+    "南湖公园": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],                # 免费公园
+    "南宁市人民公园": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],          # 免费公园
+    "狮山公园": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],                # 免费公园
+    "石门森林公园": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],            # 免费公园
+    "良凤江国家森林公园": [20, 20, 15, 15, 20, 15, 15, 15, 15, 20, 15, 15]  # 收费公园
+}).set_index("月份")
+
+# 3. 月度游客量数据（用于面积图）
+monthly_visitor_data = pd.DataFrame({
+    "月份": months,
+    "青秀山风景区": [55, 78, 52, 45, 60, 48, 42, 40, 38, 85, 50, 45],
+    "南湖公园": [68, 85, 72, 65, 75, 62, 58, 55, 60, 90, 70, 65],
+    "南宁市人民公园": [40, 55, 42, 38, 45, 35, 32, 30, 28, 60, 42, 38],
+    "狮山公园": [28, 35, 30, 25, 32, 26, 24, 22, 20, 40, 28, 25],
+    "石门森林公园": [32, 40, 35, 30, 38, 32, 29, 27, 25, 45, 35, 30],
+    "良凤江国家森林公园": [18, 25, 20, 16, 22, 18, 15, 14, 12, 30, 19, 16]
+}).set_index("月份")
+
+# --------------------------
+# 侧边栏（公园筛选功能）
+# --------------------------
+st.sidebar.header("🌳 南宁公园数据筛选")
+selected_parks = st.sidebar.multiselect(
+    "选择要查看的公园",
+    options=park_info["公园名称"].unique(),
+    default=park_info["公园名称"].unique()  # 默认选中所有公园
+)
+
+# 数据筛选（增加健壮性校验，避免报错）
+valid_parks = [park for park in selected_parks if park in price_data.columns]
+filtered_park_info = park_info[park_info["公园名称"].isin(valid_parks)]
+filtered_price_data = price_data[valid_parks]
+filtered_monthly_visitor = monthly_visitor_data[valid_parks]
+
+# 无效选择提示（友好提示用户）
+invalid_parks = set(selected_parks) - set(valid_parks)
+if invalid_parks:
+    st.sidebar.warning(f"以下公园无价格数据，已自动过滤：{', '.join(invalid_parks)}")
+
+# --------------------------
+# 主页面内容（完整可视化展示）
+# --------------------------
+st.title("🌳 南宁公园数据可视化仪表盘")
+st.divider()
+
+# 1. 公园基础信息表格
+st.subheader("一、公园基础信息")
+st.dataframe(
+    filtered_park_info.drop(["纬度", "经度"], axis=1),
+    use_container_width=True,
+    hide_index=True
+)
+
+st.divider()
+
+# 2. 优化后的价格走势折线图（核心优化）
+st.subheader("二、公园12个月门票价格走势")
+# 强制按1-12月排序，解决月份混乱问题
+filtered_price_data = filtered_price_data.reindex(months)
+st.caption("注：红色/橙色粗线为收费公园，浅色细线为免费公园（0元），鼠标悬停可查看具体价格")
+
+# 自定义样式映射（区分收费/免费公园）
+park_styles = {
+    "青秀山风景区": {"color": "#E53E3E", "line_width": 4},        # 收费-大红粗线
+    "良凤江国家森林公园": {"color": "#DD6B20", "line_width": 4},  # 收费-深橙粗线
+    "南湖公园": {"color": "#38A16980", "line_width": 2},          # 免费-浅绿细线（80为透明度）
+    "南宁市人民公园": {"color": "#3182CE80", "line_width": 2},      # 免费-浅蓝细线
+    "狮山公园": {"color": "#805AD580", "line_width": 2},          # 免费-浅紫细线
+    "石门森林公园": {"color": "#D69E2E80", "line_width": 2}        # 免费-浅黄细线
 }
-/* 页面内边距压缩 */
-.block-container {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-    max-width: 900px !important;
-}
 
-/* 标题样式（精简） */
-h1 {
-    color: #00ffff;
-    text-shadow: 0 0 5px #00ffff;
-    font-size: 20px !important;
-    margin-bottom: 0.5rem !important;
-}
-h2, h3 {
-    color: #00ff99;
-    text-shadow: 0 0 3px #00ff99;
-    border-bottom: 1px solid rgba(0,255,153,0.3);
-    padding-bottom: 4px !important;
-    margin-bottom: 0.5rem !important;
-    font-size: 16px !important;
-}
+# 提取选中公园对应的颜色列表
+selected_colors = [park_styles[park]["color"] for park in valid_parks]
 
-/* 科幻卡片模块 */
-.sci-fi-card {
-    background: rgba(10, 25, 41, 0.8);
-    border: 1px solid #00ffff;
-    border-radius: 8px;
-    padding: 10px !important;
-    margin-bottom: 10px !important;
-    box-shadow: 0 0 8px rgba(0,255,255,0.2);
-}
-
-/* Metric组件（紧凑） */
-.stMetric {
-    background: rgba(10, 25, 41, 0.9);
-    border: 1px solid #00ffff;
-    border-radius: 6px;
-    padding: 8px !important;
-    box-shadow: 0 0 5px rgba(0,255,255,0.3);
-    text-align: center;
-    margin-bottom: 5px !important;
-}
-.stMetric label {color: #00ff99 !important; font-size: 12px !important;}
-.stMetric value {font-size: 18px !important; font-weight: bold;}
-.stMetric delta {color: #ffff00 !important; font-size: 10px !important;}
-
-/* 状态文字样式 */
-.status-normal { color: #00ff99; font-size: 12px !important; }
-.status-warning { color: #ffcc00; font-size: 12px !important; }
-.status-error { color: #ff4d4d; font-size: 12px !important; }
-.status-info { color: #00ffff; font-size: 12px !important; }
-
-/* 表格/代码块紧凑 */
-.stDataFrame {font-size: 11px !important;}
-.stCode {font-size: 11px !important; padding: 8px !important;}
-</style>
-""", unsafe_allow_html=True)
-
-# ===================== 3. 侧边栏（无图片+精简信息） =====================
-with st.sidebar:
-    # 替换图片为科幻文字标识
-    st.markdown("<div style='text-align:center; padding:10px; border:2px solid #00ff99; border-radius:8px; margin-bottom:10px;'>", unsafe_allow_html=True)
-    st.markdown("<h3 style='margin:0;'>🆔 学员标识</h3>", unsafe_allow_html=True)
-    st.markdown("<p class='status-normal'>NTD-2023-001</p>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # 核心档案信息
-    st.markdown("### 📋 核心档案")
-    st.markdown(f"""
-    - **等级**：<span class='status-normal'>星际开发者 Lv.8</span>
-    - **权限**：<span class='status-warning'>β测试权限</span>
-    - **注册时间**：2023-09-01
-    - **最后同步**：{pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}
-    - **加密状态**：<span class='status-info'>已加密 🔒</span>
-    """, unsafe_allow_html=True)
-    st.divider()
-    st.markdown("<center><span class='status-info'>⚠️ 仅限授权访问</span></center>", unsafe_allow_html=True)
-
-# ===================== 4. 顶部标题区（无Banner） =====================
-st.markdown("<div class='sci-fi-card'>", unsafe_allow_html=True)
-st.title("🚀 星际学员 - 小陆 数字档案仪表盘")
-st.markdown("<p class='status-info' style='font-size:12px;margin:0;'>【档案类型：技术能力评估 | 版本：v2.1】</p>", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
-
-# ===================== 5. 主体内容（无图片+紧凑布局） =====================
-col1, col2 = st.columns([1.5, 2.5])
-
-# 左侧：基础状态
+# 折线图布局（左右分栏，美观清晰）
+col1, col2 = st.columns([8, 2])
 with col1:
-    st.markdown("<div class='sci-fi-card'>", unsafe_allow_html=True)
-    st.subheader("📊 基础状态监测")
-    
-    # 基础状态表格
-    basic_data = pd.DataFrame({
-        "监测维度": ["生理状态", "精神阈值", "能量储备", "网络连接", "任务负载"],
-        "当前状态": [
-            "<span class='status-normal'>稳定 ✔️</span>",
-            "<span class='status-normal'>92% 🟢</span>",
-            "<span class='status-warning'>85% 🟡</span>",
-            "<span class='status-normal'>加密连接 ✔️</span>",
-            "<span class='status-error'>78% 🔴</span>"
-        ]
-    })
-    st.write(basic_data.to_html(escape=False, index=False), unsafe_allow_html=True)
-    
-    # 状态说明（替换原监测图谱位置）
-    st.markdown("### 📝 状态说明")
-    st.markdown("""
-    - 生理状态：各项指标在安全阈值内
-    - 能量储备：中等，建议4小时后补充
-    - 任务负载：高负载，建议优先完成紧急任务
+    # 绘制原生折线图，增大高度避免拥挤
+    st.line_chart(
+        filtered_price_data,
+        use_container_width=True,
+        color=selected_colors,
+        y_label="门票价格（元）",
+        height=400
+    )
+    # 注入JS调整线条宽度（原生图表间接实现线宽区分）
+    st.markdown(f"""
+        <script>
+            const lineElements = document.querySelectorAll('.stLineChart svg g path');
+            const parkList = {valid_parks};
+            const styleMap = {park_styles};
+            parkList.forEach((park, index) => {{
+                if (lineElements[index]) {{
+                    lineElements[index].setAttribute('stroke-width', styleMap[park].line_width);
+                }}
+            }});
+        </script>
     """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
-# 右侧：技能矩阵
 with col2:
-    st.markdown("<div class='sci-fi-card'>", unsafe_allow_html=True)
-    st.subheader("🛠️ 编程技能矩阵")
-    
-    # 核心技能Metric
-    skill_col1, skill_col2, skill_col3 = st.columns(3)
-    with skill_col1: st.metric(label="Python", value="95%", delta="+5% (本月)")
-    with skill_col2: st.metric(label="C++", value="87%", delta="-2% (本月)")
-    with skill_col3: st.metric(label="Java", value="68%", delta="+10% (本月)")
-    
-    # 技能趋势说明（替换原趋势图谱位置）
-    st.markdown("### 📈 技能成长趋势")
-    st.markdown("""
-    - Python：持续提升，已达精通级别
-    - C++：小幅回落，需加强实战训练
-    - Java：快速提升，本月进步显著
-    - 前端开发：75%（稳定提升）
-    - 数据可视化：90%（核心优势技能）
-    """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 价格说明侧边栏
+    st.markdown("### 🎫 价格明细")
+    st.markdown("- **青秀山风景区**：节假日30元，平日20元")
+    st.markdown("- **良凤江国家森林公园**：节假日20元，平日15元")
+    st.markdown("- **其余公园**：全年免费开放")
+    st.markdown("### 📊 操作提示")
+    st.markdown("- 鼠标悬停查看精准价格")
+    st.markdown("- 点击图例隐藏/显示公园")
 
-# ===================== 6. 任务日志 + 核心代码 =====================
+st.divider()
+
+# 3. 柱状图+面积图（双栏布局）
 col3, col4 = st.columns(2)
 
-# 左侧：任务日志
+# 柱状图：年游客量对比
 with col3:
-    st.markdown("<div class='sci-fi-card'>", unsafe_allow_html=True)
-    st.subheader("📜 任务执行日志")
-    
-    # 任务数据
-    task_data = pd.DataFrame({
-        "任务ID": ["T-1234", "T-5678", "T-9012"],
-        "任务名称": ["学生信息管理系统", "课程数据可视化", "AI错题分析工具"],
-        "进度": [
-            "<span class='status-normal'>85%</span>",
-            "<span class='status-normal'>100%</span>",
-            "<span class='status-warning'>60%</span>"
-        ],
-        "优先级": ["高", "中", "紧急"]
-    })
-    st.write(task_data.to_html(escape=False, index=False), unsafe_allow_html=True)
-    
-    # 进度汇总
-    st.markdown("### 📊 进度汇总")
-    total_tasks = len(task_data)
-    completed = len(task_data[task_data["进度"].str.contains("100%")])
-    st.progress(completed / total_tasks)
-    st.markdown(f"""
-    - 总任务数：{total_tasks} | 已完成：<span class='status-normal'>{completed}</span>
-    - 紧急任务：1项（AI错题分析工具）需优先处理
-    """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.subheader("三、公园年游客量对比")
+    bar_data = filtered_park_info.set_index("公园名称")["年游客量(万人次)"]
+    st.bar_chart(
+        bar_data,
+        use_container_width=True,
+        color="#2E8B57",
+        y_label="年游客量（万人次）",
+        height=400
+    )
 
-# 右侧：核心代码
+# 面积图：月度游客量趋势（优化重叠问题）
 with col4:
-    st.markdown("<div class='sci-fi-card'>", unsafe_allow_html=True)
-    st.subheader("💻 核心任务执行代码")
-    
-    # 核心代码
-    core_code = '''def star_task_executor(task_id: str, priority: str) -> bool:
-    """星际任务执行核心函数"""
-    # 加载任务配置
-    config = load_task_config(task_id)
-    # 紧急任务资源超频
-    if priority == "紧急":
-        allocate_high_resources()
-        st.warning(f"[紧急任务] {task_id} 资源已超频")
-    # 执行任务并返回结果
-    try:
-        result = execute_task(config)
-        st.success(f"[任务完成] {task_id} 执行成功")
-        return True
-    except Exception as e:
-        st.error(f"[任务异常] {task_id} 错误：{e}")
-        return False
-'''
-    st.code(core_code, language="python", line_numbers=True)
-    
-    # 代码说明
-    st.markdown("<center><i class='status-info'>核心引擎：v2.1 | 最后更新：2025-12-18</i></center>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.subheader("四、公园月度游客量趋势")
+    # 强制月份排序，半透明色避免重叠
+    filtered_monthly_visitor = filtered_monthly_visitor.reindex(months)
+    area_colors = [park_styles[park]["color"] for park in valid_parks]
+    st.area_chart(
+        filtered_monthly_visitor,
+        use_container_width=True,
+        color=area_colors,
+        y_label="月度游客量（万人次）",
+        height=400
+    )
 
-# ===================== 页脚（精简） =====================
-st.markdown("""
-<div style='text-align:center; color:#00ffff; font-size:10px; margin-top:10px; padding:5px; border-top:1px solid #00ff99;'>
-    <p>星际学员档案系统 v2.1 | 数据加密级别：最高 | 系统状态：在线 ✔️</p>
-    <p>© 2025 星际开发学院 - 未经授权禁止复制/传播</p>
-</div>
-""", unsafe_allow_html=True)
+st.divider()
+
+# 4. 修复后的公园地理位置分布（兼容所有Streamlit版本）
+st.subheader("五、公园地理位置分布")
+st.caption("注：标记点为公园实际地理坐标，可放大/缩小、拖拽查看详情")
+
+# 移除不兼容参数，确保地图正常渲染
+st.map(
+    filtered_park_info,
+    latitude="纬度",
+    longitude="经度"
+)
+
+# 补充公园地址详情
+st.markdown("### 📌 公园地址详情")
+location_detail = filtered_park_info[["公园名称", "地址"]].set_index("公园名称")
+st.dataframe(location_detail, use_container_width=True)
+
+# 页脚信息
+st.divider()
+st.markdown("---")
+st.markdown("© 2025 南宁公园数据可视化平台 | 数据为模拟整理，仅供展示使用")
