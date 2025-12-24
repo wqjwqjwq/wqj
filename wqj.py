@@ -1,68 +1,47 @@
 import streamlit as st
 
-# 页面配置：网易云风格音乐播放器
-st.set_page_config(page_title="网易云音乐播放器", page_icon="🎶")
+# 设置页面标题
+st.set_page_config(page_title="视频中心")
 
-# 音乐列表
-music_list = [
+# 视频列表
+video_arr = [
     {
-        "name": "歌曲1 - 关山酒）",
-        "url": "https://music.163.com/song/media/outer/url?id=3323746308",  # 替换为目标歌曲ID
-        "cover": "http://p2.music.126.net/EpX1U8WYebXOzo-jJ8MW5w==/109951172371108092.jpg?param=130y130"  # 可替换为网易云歌曲封面
+        'url':'https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/01/84/153468401/153468401_nb3-1-16.mp4?e=ig8euxZM2rNcNbRVhwdVhwdlhWdVhwdVhoNvNC8BqJIzNbfq9rVEuxTEnE8L5F6VnEsSTx0vkX8fqJeYTj_lta53NCM=&uipk=5&oi=1939826609&gen=playurlv3&os=bcache&og=cos&deadline=1766568458&platform=html5&nbs=1&trid=000011f7dee85e0e4500b50a469aa245b7cp&mid=0&upsig=28823198b82cdcfaaa99c68d7384ef73&uparams=e,uipk,oi,gen,os,og,deadline,platform,nbs,trid,mid&cdnid=6590&bvc=vod&nettype=0&bw=203166&dl=0&f=p_0_0&qn_dyeid=&agrr=1&buvid=&build=0&orderid=0,1',
+        'title':'喜羊羊与灰太狼-第1集'
     },
     {
-        "name": "歌曲2 - 如果呢",
-        "url": "https://music.163.com/song/media/outer/url?id=1842728629",  # 示例：另一首歌的ID
-        "cover": "http://p2.music.126.net/-xMsNLpquZTmMZlIztTgHg==/109951165953469081.jpg?param=130y130"
-    }
-,
+        'url':'http://upos-sz-mirrorcos.bilivideo.com/upgcxcode/22/49/34889204922/34889204922-1-192.mp4?e=ig8euxZM2rNcNbRVhwdVhwdlhWdVhwdVhoNvNC8BqJIzNbfq9rVEuxTEnE8L5F6VnEsSTx0vkX8fqJeYTj_lta53NCM=&mid=0&oi=144233936&deadline=1766569302&nbs=1&uipk=5&gen=playurlv3&platform=html5&os=08hbv&og=hw&trid=4c8f7fd2de1748d380ea94fc7b04b27O&upsig=ead28cac9166011725b1c8a204be65a0&uparams=e,mid,oi,deadline,nbs,uipk,gen,platform,os,og,trid&bvc=vod&nettype=1&bw=568430&agrr=1&buvid=&build=7330300&dl=0&f=O_0_0&orderid=0,3',
+        'title':'喜羊羊与灰太狼-第2集'
+    },
     {
-        "name": "歌曲2 - 执迷不悟",
-        "url": "https://music.163.com/song/media/outer/url?id=1477539203",  # 示例：另一首歌的ID
-        "cover": "http://p1.music.126.net/NQCtUkal5sPxK1Y25SW3-Q==/109951165303077538.jpg?param=130y130"
+        'url':'https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/59/03/34761540359/34761540359-1-192.mp4?e=ig8euxZM2rNcNbRVhwdVhwdlhWdVhwdVhoNvNC8BqJIzNbfq9rVEuxTEnE8L5F6VnEsSTx0vkX8fqJeYTj_lta53NCM=&mid=0&gen=playurlv3&os=estgcos&og=cos&nbs=1&platform=html5&oi=2067284620&deadline=1766569368&uipk=5&trid=35e4d536387444449872dde85727dc6h&upsig=fe0c1ba3dfc102e3c16f0eaff5e53272&uparams=e,mid,gen,os,og,nbs,platform,oi,deadline,uipk,trid&bvc=vod&nettype=0&bw=679039&agrr=1&buvid=&build=0&dl=0&f=h_0_0&orderid=0,1',
+        'title':'喜羊羊与灰太狼-第3集'
     }
-
-
-
-
-    
 ]
 
-# 初始化会话状态（保存播放进度和索引）
-if "music_state" not in st.session_state:
-    st.session_state["music_state"] = {
-        "current_idx": 0,
-        "is_playing": False
-    }
+# 初始化当前剧集索引
+if 'ind' not in st.session_state:
+    st.session_state.ind = 0
 
-# 切换歌曲函数
-def switch_song(direction):
-    current = st.session_state["music_state"]["current_idx"]
-    if direction == "prev":
-        new_idx = (current - 1) % len(music_list)
-    else:  # next
-        new_idx = (current + 1) % len(music_list)
-    st.session_state["music_state"]["current_idx"] = new_idx
+# 动态显示当前剧集标题
+st.title(video_arr[st.session_state.ind]['title'])
 
-# 获取当前播放歌曲
-current_song = music_list[st.session_state["music_state"]["current_idx"]]
+# 播放当前视频
+st.video(video_arr[st.session_state.ind]['url'])
 
-# 页面布局
-st.title("🎶 简易网易云音乐播放器")
-# 显示歌曲封面（可从网易云歌曲页右键复制封面链接）
-st.image(current_song["cover"], width=280)
-# 显示歌曲名
-st.subheader(current_song["name"])
-# 音频播放组件（直接加载网易云链接）
-st.audio(current_song["url"], format="audio/mp3", start_time=0)
+# 定义切换函数
+def playVideo(index):
+    st.session_state.ind = index
 
-# 控制按钮
-col1, col2, col3 = st.columns(3, gap="small")
-with col1:
-    st.button("上一首", on_click=switch_song, args=("prev",), use_container_width=True)
-with col2:
-    play_btn_text = "暂停" if st.session_state["music_state"]["is_playing"] else "播放"
-    if st.button(play_btn_text, use_container_width=True):
-        st.session_state["music_state"]["is_playing"] = not st.session_state["music_state"]["is_playing"]
-with col3:
-    st.button("下一首", on_click=switch_song, args=("next",), use_container_width=True)
+# 创建横向按钮：使用 columns
+cols = st.columns(len(video_arr))  # 创建与视频数量相同的列
+
+for i, col in enumerate(cols):
+    with col:
+        st.button(
+            f"第{i+1}集",
+            key=f"btn_{i}",
+            on_click=playVideo,
+            args=(i,),
+            use_container_width=True  # 让按钮填满列宽，更美观
+        )
